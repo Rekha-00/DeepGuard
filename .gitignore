@@ -1,0 +1,10 @@
+Data/
+uploads/*
+!uploads/.gitkeep
+static/spectrograms/*
+!static/spectrograms/.gitkeep
+__pycache__/
+*.pyc
+outputs/*
+!outputs/.gitkeep
+model.py

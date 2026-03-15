@@ -1,0 +1,1942 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DeepGuard — AI Voice Authentication</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@200;300;400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #07070a;
+        --white: #eeedf6;
+        --pink: #ff2d6b;
+        --purple: #8b5cf6;
+        --green: #2dd4a0;
+        --red: #ff4466;
+        --yellow: #f5a524;
+        --muted: #323244;
+        --muted2: #6a6a84;
+        --line: rgba(255, 255, 255, 0.065);
+        --line2: rgba(255, 255, 255, 0.13);
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg);
+        color: var(--white);
+        font-family: "Sora", sans-serif;
+        overflow-x: hidden;
+        cursor: none;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Cursor */
+      #dg-cursor {
+        position: fixed;
+        width: 9px;
+        height: 9px;
+        background: var(--pink);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        transform: translate(-50%, -50%);
+        transition:
+          width 0.28s,
+          height 0.28s,
+          background 0.28s;
+        mix-blend-mode: difference;
+      }
+      #dg-ring {
+        position: fixed;
+        width: 34px;
+        height: 34px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9998;
+        transform: translate(-50%, -50%);
+        transition:
+          width 0.28s,
+          height 0.28s,
+          border-color 0.28s;
+      }
+      #dg-cursor.hov {
+        width: 18px;
+        height: 18px;
+        background: var(--purple);
+      }
+      #dg-ring.hov {
+        width: 54px;
+        height: 54px;
+        border-color: var(--purple);
+      }
+
+      /* Preloader */
+      #dg-pre {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 22px;
+        transition:
+          opacity 0.7s ease,
+          visibility 0.7s ease;
+      }
+      #dg-pre.gone {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .pre-logo {
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.4em;
+        text-transform: uppercase;
+        font-family: "DM Mono", monospace;
+        color: var(--white);
+      }
+      .pre-track {
+        width: 160px;
+        height: 1px;
+        background: var(--muted);
+        overflow: hidden;
+      }
+      .pre-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--pink), var(--purple));
+        width: 0;
+      }
+      .pre-pct {
+        font-family: "DM Mono", monospace;
+        font-size: 0.65rem;
+        color: var(--muted2);
+        letter-spacing: 0.1em;
+      }
+
+      /* Nav */
+      #dg-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        padding: 22px 52px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.4s;
+      }
+      #dg-nav.stuck {
+        padding: 14px 52px;
+        background: rgba(7, 7, 10, 0.9);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-bottom: 1px solid var(--line);
+      }
+      .nav-logo {
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--white);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .logo-pip {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: linear-gradient(135deg, var(--pink), var(--purple));
+      }
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+      }
+      .nav-links a {
+        font-size: 0.72rem;
+        font-weight: 400;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--muted2);
+        text-decoration: none;
+        transition: color 0.22s;
+        position: relative;
+      }
+      .nav-links a::after {
+        content: "";
+        position: absolute;
+        bottom: -3px;
+        left: 0;
+        width: 0;
+        height: 1px;
+        background: var(--pink);
+        transition: width 0.28s;
+      }
+      .nav-links a:hover {
+        color: var(--white);
+      }
+      .nav-links a:hover::after {
+        width: 100%;
+      }
+      .nav-pill {
+        padding: 8px 20px;
+        border-radius: 100px;
+        background: transparent;
+        border: 1px solid var(--line2);
+        color: var(--white);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        text-decoration: none;
+        transition: all 0.28s;
+      }
+      .nav-pill:hover {
+        background: var(--pink);
+        border-color: var(--pink);
+      }
+
+      /* Hero */
+      #hero {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        padding: 130px 52px 80px;
+      }
+      .hero-canvas {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+      .orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(110px);
+        animation: drift 14s ease-in-out infinite;
+      }
+      .orb-a {
+        width: 640px;
+        height: 480px;
+        background: rgba(139, 92, 246, 0.11);
+        top: -80px;
+        right: -60px;
+        animation-delay: 0s;
+      }
+      .orb-b {
+        width: 480px;
+        height: 480px;
+        background: rgba(255, 45, 107, 0.08);
+        bottom: -80px;
+        left: -60px;
+        animation-delay: -7s;
+      }
+      @keyframes drift {
+        0%,
+        100% {
+          transform: translate(0, 0) scale(1);
+        }
+        50% {
+          transform: translate(18px, -18px) scale(1.04);
+        }
+      }
+      .hero-grid-lines {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(var(--line) 1px, transparent 1px),
+          linear-gradient(90deg, var(--line) 1px, transparent 1px);
+        background-size: 72px 72px;
+        -webkit-mask-image: radial-gradient(
+          ellipse 90% 80% at 50% 50%,
+          black 20%,
+          transparent 75%
+        );
+        mask-image: radial-gradient(
+          ellipse 90% 80% at 50% 50%,
+          black 20%,
+          transparent 75%
+        );
+      }
+      .hero-inner {
+        position: relative;
+        z-index: 1;
+        max-width: 1120px;
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 72px;
+        align-items: center;
+      }
+
+      .h-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--pink);
+        border: 1px solid rgba(255, 45, 107, 0.22);
+        padding: 5px 13px;
+        border-radius: 100px;
+        background: rgba(255, 45, 107, 0.06);
+        margin-bottom: 26px;
+      }
+      .h-tag::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--pink);
+        animation: pip 2s infinite;
+      }
+      @keyframes pip {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+      }
+      .h1 {
+        font-size: clamp(2.6rem, 5.5vw, 5rem);
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -2.5px;
+        margin-bottom: 22px;
+      }
+      .h1-line {
+        display: block;
+        overflow: hidden;
+      }
+      .h1-line span {
+        display: block;
+        animation: rise 0.85s cubic-bezier(0.4, 0, 0.2, 1) both;
+      }
+      .h1-line:nth-child(1) span {
+        animation-delay: 0.25s;
+      }
+      .h1-line:nth-child(2) span {
+        animation-delay: 0.4s;
+      }
+      .h1-line:nth-child(3) span {
+        animation-delay: 0.55s;
+      }
+      @keyframes rise {
+        from {
+          transform: translateY(105%);
+        }
+        to {
+          transform: translateY(0);
+        }
+      }
+      .h1-grad {
+        background: linear-gradient(95deg, var(--pink), var(--purple));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .h-sub {
+        font-size: 0.92rem;
+        font-weight: 300;
+        color: var(--muted2);
+        line-height: 1.78;
+        max-width: 400px;
+        margin-bottom: 36px;
+        animation: fadeup 0.8s 0.75s both;
+      }
+      .h-btns {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: fadeup 0.8s 0.9s both;
+      }
+      @keyframes fadeup {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .btn-primary {
+        padding: 12px 28px;
+        border-radius: 100px;
+        background: linear-gradient(135deg, var(--pink), var(--purple));
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        border: none;
+        cursor: pointer;
+        transition: all 0.28s;
+        text-decoration: none;
+        display: inline-block;
+        box-shadow: 0 6px 28px rgba(255, 45, 107, 0.22);
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(255, 45, 107, 0.32);
+      }
+      .btn-ghost {
+        padding: 12px 24px;
+        border-radius: 100px;
+        background: transparent;
+        border: 1px solid var(--line2);
+        color: var(--white);
+        font-size: 0.78rem;
+        font-weight: 500;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.28s;
+        text-decoration: none;
+        display: inline-block;
+      }
+      .btn-ghost:hover {
+        border-color: rgba(255, 255, 255, 0.45);
+        transform: translateY(-2px);
+      }
+
+      /* Upload Widget */
+      .h-right {
+        animation: fadeup 0.9s 0.45s both;
+      }
+      .upload-widget {
+        background: rgba(255, 255, 255, 0.028);
+        border: 1px solid var(--line2);
+        border-radius: 22px;
+        padding: 30px;
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        position: relative;
+        overflow: hidden;
+      }
+      .upload-widget::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 45, 107, 0.035),
+          rgba(139, 92, 246, 0.035)
+        );
+        pointer-events: none;
+      }
+      .uw-eyebrow {
+        font-family: "DM Mono", monospace;
+        font-size: 0.58rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--muted2);
+        margin-bottom: 16px;
+      }
+
+      /* Upload zone - original ID */
+      .upload-zone {
+        border: 1.5px dashed rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        padding: 34px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.28s;
+        position: relative;
+        z-index: 1;
+        margin-bottom: 14px;
+      }
+      .upload-zone:hover,
+      .upload-zone.dragover {
+        border-color: var(--pink);
+        background: rgba(255, 45, 107, 0.04);
+      }
+      .upload-icon {
+        font-size: 1.9rem;
+        display: block;
+        margin-bottom: 11px;
+        animation: bob 3.2s ease-in-out infinite;
+        filter: drop-shadow(0 0 10px rgba(255, 45, 107, 0.4));
+      }
+      @keyframes bob {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-7px);
+        }
+      }
+      .upload-zone h2 {
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-bottom: 5px;
+      }
+      .upload-zone p {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        color: var(--muted2);
+      }
+      #fileInput {
+        display: none;
+      }
+
+      /* File selected - original ID */
+      .file-selected {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 45, 107, 0.07);
+        border: 1px solid rgba(255, 45, 107, 0.18);
+        border-radius: 10px;
+        padding: 9px 13px;
+        margin-bottom: 12px;
+      }
+      .file-selected.visible {
+        display: flex;
+      }
+      .file-name {
+        font-family: "DM Mono", monospace;
+        font-size: 0.68rem;
+        color: var(--pink);
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #fileSize {
+        font-family: "DM Mono", monospace;
+        font-size: 0.62rem;
+        color: var(--muted2);
+        flex-shrink: 0;
+      }
+
+      /* Analyze button - original ID/class */
+      .btn-analyze {
+        width: 100%;
+        padding: 13px;
+        border: none;
+        border-radius: 11px;
+        font-family: "Sora", sans-serif;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        cursor: pointer;
+        background: linear-gradient(135deg, var(--pink), var(--purple));
+        color: #fff;
+        display: none;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.28s;
+        box-shadow: 0 4px 18px rgba(255, 45, 107, 0.18);
+      }
+      .btn-analyze.visible {
+        display: block;
+      }
+      .btn-analyze::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -55%;
+        width: 38%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.14),
+          transparent
+        );
+        transform: skewX(-20deg);
+        animation: sheen 3.5s infinite;
+      }
+      @keyframes sheen {
+        0% {
+          left: -55%;
+        }
+        100% {
+          left: 150%;
+        }
+      }
+      .btn-analyze:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 32px rgba(255, 45, 107, 0.28);
+      }
+      .btn-analyze:disabled {
+        opacity: 0.38;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Error box - original ID */
+      .error-box {
+        display: none;
+        padding: 10px 13px;
+        background: rgba(255, 45, 107, 0.07);
+        border: 1px solid rgba(255, 45, 107, 0.18);
+        border-radius: 9px;
+        color: #ff7090;
+        font-family: "DM Mono", monospace;
+        font-size: 0.72rem;
+        margin-top: 10px;
+      }
+      .error-box.visible {
+        display: block;
+      }
+
+      /* Loader - original IDs/classes */
+      .loader {
+        display: none;
+        padding: 28px 20px;
+        text-align: center;
+        margin-top: 10px;
+      }
+      .loader.visible {
+        display: block;
+      }
+      .pulse-ring {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.08);
+        border-top-color: var(--pink);
+        border-right-color: var(--purple);
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 13px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .loader-text {
+        font-family: "DM Mono", monospace;
+        font-size: 0.58rem;
+        letter-spacing: 0.15em;
+        color: var(--muted2);
+        text-transform: uppercase;
+        margin-bottom: 5px;
+      }
+      .loader-steps {
+        font-size: 0.78rem;
+        color: var(--muted2);
+      }
+      .loader-steps span {
+        color: var(--purple);
+      }
+      .wave-bars {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        margin-top: 12px;
+      }
+      .wb {
+        width: 3px;
+        border-radius: 3px;
+        background: linear-gradient(180deg, var(--pink), var(--purple));
+        animation: wb 1.1s ease-in-out infinite;
+      }
+      .wb:nth-child(1) {
+        height: 5px;
+        animation-delay: 0s;
+      }
+      .wb:nth-child(2) {
+        height: 13px;
+        animation-delay: 0.1s;
+      }
+      .wb:nth-child(3) {
+        height: 8px;
+        animation-delay: 0.2s;
+      }
+      .wb:nth-child(4) {
+        height: 19px;
+        animation-delay: 0.15s;
+      }
+      .wb:nth-child(5) {
+        height: 11px;
+        animation-delay: 0.25s;
+      }
+      .wb:nth-child(6) {
+        height: 15px;
+        animation-delay: 0.05s;
+      }
+      .wb:nth-child(7) {
+        height: 7px;
+        animation-delay: 0.3s;
+      }
+      @keyframes wb {
+        0%,
+        100% {
+          transform: scaleY(0.3);
+          opacity: 0.35;
+        }
+        50% {
+          transform: scaleY(1);
+          opacity: 1;
+        }
+      }
+
+      /* Result card - original IDs/classes */
+      .result-card {
+        display: none;
+        margin-top: 14px;
+        animation: fadeup 0.45s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+      }
+      .result-card.visible {
+        display: block;
+      }
+      .result-header {
+        padding: 18px;
+        border-radius: 13px;
+        margin-bottom: 9px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .result-header.fake {
+        background: rgba(255, 45, 107, 0.08);
+        border: 1px solid rgba(255, 45, 107, 0.16);
+      }
+      .result-header.real {
+        background: rgba(45, 212, 160, 0.07);
+        border: 1px solid rgba(45, 212, 160, 0.14);
+      }
+      .verdict-badge {
+        font-size: 1.6rem;
+        flex-shrink: 0;
+      }
+      .result-title {
+        flex: 1;
+        min-width: 0;
+      }
+      .result-title h2 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+      }
+      .result-title h2.fake {
+        color: #ff5577;
+      }
+      .result-title h2.real {
+        color: #2dd4a0;
+      }
+      .result-title p {
+        font-family: "DM Mono", monospace;
+        font-size: 0.58rem;
+        color: var(--muted2);
+        margin-top: 2px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .confidence-display {
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .confidence-num {
+        font-size: 1.9rem;
+        font-weight: 800;
+        letter-spacing: -1px;
+        line-height: 1;
+      }
+      .confidence-num.fake {
+        color: #ff5577;
+      }
+      .confidence-num.real {
+        color: #2dd4a0;
+      }
+      .confidence-label {
+        font-family: "DM Mono", monospace;
+        font-size: 0.55rem;
+        color: var(--muted2);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 7px;
+        margin-bottom: 9px;
+      }
+      .stat-box {
+        padding: 11px 10px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--line);
+      }
+      .stat-label {
+        font-family: "DM Mono", monospace;
+        font-size: 0.52rem;
+        letter-spacing: 0.1em;
+        color: var(--muted2);
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      }
+      .stat-value {
+        font-size: 0.88rem;
+        font-weight: 600;
+      }
+      .risk-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 7px;
+        border-radius: 100px;
+        font-size: 0.62rem;
+        font-weight: 500;
+        font-family: "DM Mono", monospace;
+      }
+      .risk-HIGH {
+        background: rgba(255, 45, 107, 0.1);
+        color: #ff5577;
+        border: 1px solid rgba(255, 45, 107, 0.22);
+      }
+      .risk-MEDIUM {
+        background: rgba(245, 165, 36, 0.1);
+        color: #f5a524;
+        border: 1px solid rgba(245, 165, 36, 0.22);
+      }
+      .risk-LOW {
+        background: rgba(45, 212, 160, 0.08);
+        color: #2dd4a0;
+        border: 1px solid rgba(45, 212, 160, 0.2);
+      }
+      .prob-section {
+        padding: 13px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--line);
+        margin-bottom: 9px;
+      }
+      .prob-section h3 {
+        font-family: "DM Mono", monospace;
+        font-size: 0.55rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted2);
+        margin-bottom: 11px;
+      }
+      .prob-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 8px;
+      }
+      .prob-row:last-child {
+        margin-bottom: 0;
+      }
+      .prob-label {
+        font-family: "DM Mono", monospace;
+        font-size: 0.62rem;
+        font-weight: 500;
+        width: 28px;
+        flex-shrink: 0;
+      }
+      .prob-label.fake-l {
+        color: #ff5577;
+      }
+      .prob-label.real-l {
+        color: #2dd4a0;
+      }
+      .prob-bar-track {
+        flex: 1;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 5px;
+        overflow: hidden;
+      }
+      .prob-bar-fill {
+        height: 100%;
+        border-radius: 5px;
+        transition: width 1.1s cubic-bezier(0.34, 1.2, 0.64, 1);
+      }
+      .prob-bar-fill.fake {
+        background: linear-gradient(90deg, var(--red), #ff7799);
+      }
+      .prob-bar-fill.real {
+        background: linear-gradient(90deg, var(--green), #5eeec4);
+      }
+      .prob-pct {
+        font-family: "DM Mono", monospace;
+        font-size: 0.62rem;
+        color: var(--muted2);
+        width: 30px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .verdict-section {
+        padding: 12px 13px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--line);
+        margin-bottom: 9px;
+      }
+      .verdict-text {
+        font-size: 0.76rem;
+        color: var(--muted2);
+        line-height: 1.68;
+      }
+      .spec-section {
+        padding: 13px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--line);
+      }
+      .spec-section h3 {
+        font-family: "DM Mono", monospace;
+        font-size: 0.55rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted2);
+        margin-bottom: 10px;
+      }
+      .spec-section img {
+        width: 100%;
+        border-radius: 7px;
+        border: 1px solid var(--line);
+      }
+
+      /* Marquee */
+      .marquee-strip {
+        padding: 32px 0;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        overflow: hidden;
+      }
+      .marquee-inner {
+        display: flex;
+        gap: 52px;
+        animation: marquee 24s linear infinite;
+        width: max-content;
+      }
+      .marquee-inner:hover {
+        animation-play-state: paused;
+      }
+      .m-item {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        font-family: "DM Mono", monospace;
+        font-size: 0.64rem;
+        letter-spacing: 0.17em;
+        text-transform: uppercase;
+        color: var(--muted2);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .m-dot {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--pink);
+        flex-shrink: 0;
+      }
+      @keyframes marquee {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(-50%);
+        }
+      }
+
+      /* Sections */
+      .sec {
+        padding: 120px 52px;
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+      .sec-tag {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--pink);
+        margin-bottom: 16px;
+      }
+      .sec-tag::before {
+        content: "";
+        width: 26px;
+        height: 1px;
+        background: var(--pink);
+      }
+      .sec-title {
+        font-size: clamp(1.9rem, 3.8vw, 3.4rem);
+        font-weight: 800;
+        letter-spacing: -1.5px;
+        line-height: 1.08;
+        margin-bottom: 64px;
+      }
+      .sec-title em {
+        font-style: normal;
+        background: linear-gradient(90deg, var(--pink), var(--purple));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      /* Steps */
+      .steps-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2px;
+      }
+      .step-card {
+        padding: 28px 20px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        position: relative;
+        overflow: hidden;
+        transition: background 0.35s;
+      }
+      .step-card:first-child {
+        border-radius: 14px 0 0 14px;
+      }
+      .step-card:last-child {
+        border-radius: 0 14px 14px 0;
+      }
+      .step-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 45, 107, 0.05),
+          transparent
+        );
+        opacity: 0;
+        transition: opacity 0.35s;
+        pointer-events: none;
+      }
+      .step-card:hover {
+        background: rgba(255, 255, 255, 0.018);
+      }
+      .step-card:hover::before {
+        opacity: 1;
+      }
+      .step-no {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.12em;
+        color: var(--muted2);
+        margin-bottom: 16px;
+      }
+      .step-icon {
+        font-size: 1.7rem;
+        display: block;
+        margin-bottom: 13px;
+      }
+      .step-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-bottom: 7px;
+        letter-spacing: -0.2px;
+      }
+      .step-desc {
+        font-size: 0.76rem;
+        color: var(--muted2);
+        line-height: 1.68;
+      }
+
+      /* Features */
+      #features-sec {
+        background: rgba(255, 255, 255, 0.013);
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        padding: 96px 0;
+      }
+      .feat-wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 52px;
+      }
+      .feat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+        margin-top: 52px;
+      }
+      .feat-card {
+        padding: 30px 24px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        transition: background 0.35s;
+        position: relative;
+        overflow: hidden;
+      }
+      .feat-card:nth-child(1) {
+        border-radius: 14px 0 0 0;
+      }
+      .feat-card:nth-child(3) {
+        border-radius: 0 14px 0 0;
+      }
+      .feat-card:nth-child(4) {
+        border-radius: 0 0 0 14px;
+      }
+      .feat-card:nth-child(6) {
+        border-radius: 0 0 14px 0;
+      }
+      .feat-card::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--pink), var(--purple));
+        transform: scaleX(0);
+        transition: transform 0.38s;
+        transform-origin: left;
+      }
+      .feat-card:hover {
+        background: rgba(255, 255, 255, 0.022);
+      }
+      .feat-card:hover::after {
+        transform: scaleX(1);
+      }
+      .feat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: rgba(255, 45, 107, 0.08);
+        border: 1px solid rgba(255, 45, 107, 0.14);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+        margin-bottom: 16px;
+        transition: transform 0.28s;
+      }
+      .feat-card:hover .feat-icon {
+        transform: scale(1.1) rotate(-6deg);
+      }
+      .feat-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 7px;
+        letter-spacing: -0.15px;
+      }
+      .feat-desc {
+        font-size: 0.75rem;
+        color: var(--muted2);
+        line-height: 1.68;
+      }
+
+      /* Stats */
+      .stats-numbers {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 36px;
+        margin-top: 52px;
+      }
+      .stat-big {
+        text-align: center;
+      }
+      .stat-big-num {
+        font-size: clamp(2rem, 4.5vw, 3.6rem);
+        font-weight: 800;
+        letter-spacing: -2px;
+        line-height: 1;
+        margin-bottom: 9px;
+        background: linear-gradient(135deg, var(--white), var(--muted2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .stat-big-lbl {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.17em;
+        color: var(--muted2);
+        text-transform: uppercase;
+      }
+
+      /* CTA */
+      #cta-sec {
+        padding: 140px 52px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        border-top: 1px solid var(--line);
+      }
+      #cta-sec::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse 60% 60% at 50% 50%,
+          rgba(139, 92, 246, 0.07),
+          transparent
+        );
+        pointer-events: none;
+      }
+      .cta-inner {
+        position: relative;
+        z-index: 1;
+        max-width: 660px;
+        margin: 0 auto;
+      }
+      .cta-title {
+        font-size: clamp(2rem, 4.5vw, 3.9rem);
+        font-weight: 800;
+        letter-spacing: -2px;
+        line-height: 1.06;
+        margin-bottom: 20px;
+      }
+      .cta-sub {
+        font-size: 0.9rem;
+        color: var(--muted2);
+        font-weight: 300;
+        margin-bottom: 40px;
+        line-height: 1.78;
+      }
+
+      /* Footer */
+      #dg-footer {
+        padding: 36px 52px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 18px;
+      }
+      .foot-logo {
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--white);
+      }
+      .foot-links {
+        display: flex;
+        gap: 26px;
+      }
+      .foot-links a {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: var(--muted2);
+        text-decoration: none;
+        transition: color 0.22s;
+      }
+      .foot-links a:hover {
+        color: var(--white);
+      }
+      .foot-copy {
+        font-family: "DM Mono", monospace;
+        font-size: 0.58rem;
+        color: var(--muted2);
+      }
+
+      /* Reveal */
+      .reveal {
+        opacity: 0;
+        transform: translateY(26px);
+        transition:
+          opacity 0.75s ease,
+          transform 0.75s ease;
+      }
+      .reveal.in {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Responsive */
+      @media (max-width: 920px) {
+        .hero-inner {
+          grid-template-columns: 1fr;
+          gap: 44px;
+        }
+        .steps-row {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .feat-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .stats-numbers {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        #dg-nav,
+        #hero,
+        .sec,
+        #cta-sec,
+        #dg-footer {
+          padding-left: 24px;
+          padding-right: 24px;
+        }
+        #dg-nav.stuck {
+          padding-left: 24px;
+          padding-right: 24px;
+        }
+        .feat-wrap {
+          padding: 0 24px;
+        }
+        .stats-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 560px) {
+        .feat-grid,
+        .steps-row {
+          grid-template-columns: 1fr;
+        }
+        .hide-sm {
+          display: none;
+        }
+      }
+      ::-webkit-scrollbar {
+        width: 3px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--muted);
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="dg-cursor"></div>
+    <div id="dg-ring"></div>
+
+    <!-- Preloader -->
+    <div id="dg-pre">
+      <div class="pre-logo">DeepGuard</div>
+      <div class="pre-track"><div class="pre-fill" id="pre-fill"></div></div>
+      <div class="pre-pct" id="pre-pct">0%</div>
+    </div>
+
+    <!-- Nav -->
+    <nav id="dg-nav">
+      <a href="#hero" class="nav-logo"
+        ><div class="logo-pip"></div>
+        DeepGuard</a
+      >
+      <div class="nav-links">
+        <a href="#how-sec">How It Works</a>
+        <a href="#features-sec" class="hide-sm">Features</a>
+        <a href="#stats-sec" class="hide-sm">Research</a>
+        <a href="#hero" class="nav-pill">Try Now</a>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <section id="hero">
+      <div class="hero-canvas">
+        <div class="orb orb-a"></div>
+        <div class="orb orb-b"></div>
+        <div class="hero-grid-lines"></div>
+      </div>
+      <div class="hero-inner">
+        <div>
+          <div class="h-tag">&#9679; AI-Powered Detection</div>
+          <h1 class="h1">
+            <span class="h1-line"><span>Is That</span></span>
+            <span class="h1-line"
+              ><span>Voice <span class="h1-grad">Real</span></span></span
+            >
+            <span class="h1-line"><span>or Fake?</span></span>
+          </h1>
+          <p class="h-sub">
+            DeepGuard uses machine learning to detect AI-generated voice clones
+            in seconds. Upload any audio file and get an instant verdict.
+          </p>
+          <div class="h-btns">
+            <a href="#how-sec" class="btn-primary">See How It Works</a>
+            <a href="#features-sec" class="btn-ghost">Explore Features</a>
+          </div>
+        </div>
+        <div class="h-right">
+          <div class="upload-widget">
+            <p class="uw-eyebrow">// Voice Analysis Engine</p>
+            <div class="upload-zone" id="uploadZone">
+              <span class="upload-icon">&#127897;</span>
+              <h2>Drop Audio File Here</h2>
+              <p>
+                or click to browse &nbsp;&middot;&nbsp; WAV &middot; MP3
+                &middot; FLAC &middot; OGG &middot; M4A
+              </p>
+              <input
+                type="file"
+                id="fileInput"
+                accept=".wav,.mp3,.flac,.ogg,.m4a"
+              />
+            </div>
+            <div class="file-selected" id="fileSelected">
+              <span>&#128194;</span>
+              <span class="file-name" id="fileName">&#8212;</span>
+              <span id="fileSize"></span>
+            </div>
+            <button
+              class="btn-analyze"
+              id="btnAnalyze"
+              onclick="analyzeAudio()"
+            >
+              &#128269; &nbsp; Analyze for Deepfake
+            </button>
+            <div class="error-box" id="errorBox"></div>
+            <div class="loader" id="loader">
+              <div class="pulse-ring"></div>
+              <p class="loader-text">Analyzing Audio</p>
+              <div class="loader-steps" id="loaderSteps">
+                <span>&#9654;</span> Extracting spectral features...
+              </div>
+              <div class="wave-bars">
+                <div class="wb"></div>
+                <div class="wb"></div>
+                <div class="wb"></div>
+                <div class="wb"></div>
+                <div class="wb"></div>
+                <div class="wb"></div>
+                <div class="wb"></div>
+              </div>
+            </div>
+            <div class="result-card" id="resultCard">
+              <div class="result-header" id="resultHeader">
+                <span class="verdict-badge" id="verdictBadge">&#127897;</span>
+                <div class="result-title">
+                  <h2 id="resultLabel">&#8212;</h2>
+                  <p id="resultFile">&#8212;</p>
+                </div>
+                <div class="confidence-display">
+                  <div class="confidence-num" id="confidenceNum">&#8212;</div>
+                  <div class="confidence-label">Confidence</div>
+                </div>
+              </div>
+              <div class="stats-grid">
+                <div class="stat-box">
+                  <div class="stat-label">Risk Level</div>
+                  <div class="stat-value" id="riskBadge">&#8212;</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">Fake Probability</div>
+                  <div class="stat-value" id="statFake" style="color: #ff5577">
+                    &#8212;
+                  </div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">Real Probability</div>
+                  <div class="stat-value" id="statReal" style="color: #2dd4a0">
+                    &#8212;
+                  </div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">Process Time</div>
+                  <div class="stat-value" id="statTime" style="color: #a78bfa">
+                    &#8212;
+                  </div>
+                </div>
+              </div>
+              <div class="prob-section">
+                <h3>Probability Distribution</h3>
+                <div class="prob-row">
+                  <span class="prob-label fake-l">FAKE</span>
+                  <div class="prob-bar-track">
+                    <div
+                      class="prob-bar-fill fake"
+                      id="barFake"
+                      style="width: 0%"
+                    ></div>
+                  </div>
+                  <span class="prob-pct" id="pctFake">0%</span>
+                </div>
+                <div class="prob-row">
+                  <span class="prob-label real-l">REAL</span>
+                  <div class="prob-bar-track">
+                    <div
+                      class="prob-bar-fill real"
+                      id="barReal"
+                      style="width: 0%"
+                    ></div>
+                  </div>
+                  <span class="prob-pct" id="pctReal">0%</span>
+                </div>
+              </div>
+              <div class="verdict-section">
+                <p class="verdict-text" id="verdictText">&#8212;</p>
+              </div>
+              <div class="spec-section" id="specSection" style="display: none">
+                <h3>Spectrogram Analysis</h3>
+                <img
+                  id="specImg"
+                  src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+                  alt="Mel Spectrogram"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee-strip">
+      <div class="marquee-inner">
+        <div class="m-item">
+          <span class="m-dot"></span>MFCC Feature Extraction
+        </div>
+        <div class="m-item">
+          <span class="m-dot"></span>Mel-Spectrogram Analysis
+        </div>
+        <div class="m-item">
+          <span class="m-dot"></span>Random Forest Classifier
+        </div>
+        <div class="m-item"><span class="m-dot"></span>Real-Time Detection</div>
+        <div class="m-item">
+          <span class="m-dot"></span>Voice Clone Detection
+        </div>
+        <div class="m-item"><span class="m-dot"></span>Spectral Contrast</div>
+        <div class="m-item"><span class="m-dot"></span>400+ Audio Features</div>
+        <div class="m-item">
+          <span class="m-dot"></span>scikit-learn &middot; Librosa &middot;
+          Flask
+        </div>
+        <div class="m-item">
+          <span class="m-dot"></span>MFCC Feature Extraction
+        </div>
+        <div class="m-item">
+          <span class="m-dot"></span>Mel-Spectrogram Analysis
+        </div>
+        <div class="m-item">
+          <span class="m-dot"></span>Random Forest Classifier
+        </div>
+        <div class="m-item"><span class="m-dot"></span>Real-Time Detection</div>
+        <div class="m-item">
+          <span class="m-dot"></span>Voice Clone Detection
+        </div>
+        <div class="m-item"><span class="m-dot"></span>Spectral Contrast</div>
+        <div class="m-item"><span class="m-dot"></span>400+ Audio Features</div>
+        <div class="m-item">
+          <span class="m-dot"></span>scikit-learn &middot; Librosa &middot;
+          Flask
+        </div>
+      </div>
+    </div>
+
+    <!-- HOW IT WORKS -->
+    <section id="how-sec">
+      <div class="sec">
+        <div class="sec-tag">How It Works</div>
+        <h2 class="sec-title">Four steps to<br /><em>detect the truth</em></h2>
+        <div class="steps-row reveal">
+          <div class="step-card">
+            <div class="step-no">01</div>
+            <span class="step-icon">&#128193;</span>
+            <h3 class="step-title">Upload Audio</h3>
+            <p class="step-desc">
+              Drop any audio file: WAV, MP3, FLAC, OGG or M4A. Our system
+              accepts all common formats instantly.
+            </p>
+          </div>
+          <div class="step-card">
+            <div class="step-no">02</div>
+            <span class="step-icon">&#128300;</span>
+            <h3 class="step-title">Feature Extraction</h3>
+            <p class="step-desc">
+              We extract 400+ acoustic features: MFCC, Mel-Spectrogram, Chroma,
+              Spectral Contrast and more.
+            </p>
+          </div>
+          <div class="step-card">
+            <div class="step-no">03</div>
+            <span class="step-icon">&#129504;</span>
+            <h3 class="step-title">AI Analysis</h3>
+            <p class="step-desc">
+              Our Random Forest model &mdash; trained on thousands of real and
+              fake samples. Analyzes the fingerprint.
+            </p>
+          </div>
+          <div class="step-card">
+            <div class="step-no">04</div>
+            <span class="step-icon">&#9989;</span>
+            <h3 class="step-title">Instant Verdict</h3>
+            <p class="step-desc">
+              REAL or FAKE with confidence score, risk level and full
+              spectrogram visualization.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features-sec">
+      <div class="feat-wrap">
+        <div class="sec-tag">Capabilities</div>
+        <h2 class="sec-title">Built for <em>accuracy</em><br />and clarity</h2>
+        <div class="feat-grid reveal">
+          <div class="feat-card">
+            <div class="feat-icon">&#127925;</div>
+            <h3 class="feat-title">Multi-Format Support</h3>
+            <p class="feat-desc">
+              Accepts WAV, MP3, FLAC, OGG and M4A. No conversion needed before
+              uploading.
+            </p>
+          </div>
+          <div class="feat-card">
+            <div class="feat-icon">&#128202;</div>
+            <h3 class="feat-title">Spectrogram Visualization</h3>
+            <p class="feat-desc">
+              See Mel-Spectrogram and MFCC features visually and understand
+              exactly why the model decided.
+            </p>
+          </div>
+          <div class="feat-card">
+            <div class="feat-icon">&#9889;</div>
+            <h3 class="feat-title">Fast Processing</h3>
+            <p class="feat-desc">
+              Results in under 15 seconds. Full 400+ feature extraction pipeline
+              on any device.
+            </p>
+          </div>
+          <div class="feat-card">
+            <div class="feat-icon">&#128737;</div>
+            <h3 class="feat-title">Risk Level Scoring</h3>
+            <p class="feat-desc">
+              Beyond REAL/FAKE: HIGH, MEDIUM or LOW risk score for nuanced
+              interpretation.
+            </p>
+          </div>
+          <div class="feat-card">
+            <div class="feat-icon">&#128269;</div>
+            <h3 class="feat-title">400+ Audio Features</h3>
+            <p class="feat-desc">
+              MFCC, Delta MFCC, Mel-Spectrogram, Chroma, Spectral Contrast, ZCR
+              and RMS Energy.
+            </p>
+          </div>
+          <div class="feat-card">
+            <div class="feat-icon">&#127919;</div>
+            <h3 class="feat-title">Confidence Score</h3>
+            <p class="feat-desc">
+              Every prediction includes a probability score so you know exactly
+              how certain the model is !
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section id="stats-sec">
+      <div class="sec">
+        <div class="sec-tag">Research</div>
+        <h2 class="sec-title">
+          Numbers that<br /><em>speak for themselves</em>
+        </h2>
+        <div class="stats-numbers reveal">
+          <div class="stat-big">
+            <div class="stat-big-num">97. 41%</div>
+            <div class="stat-big-lbl">Test Accuracy</div>
+          </div>
+          <div class="stat-big">
+            <div class="stat-big-num">400+</div>
+            <div class="stat-big-lbl">Audio Features</div>
+          </div>
+          <div class="stat-big">
+            <div class="stat-big-num">2000+</div>
+            <div class="stat-big-lbl">Training Samples</div>
+          </div>
+          <div class="stat-big">
+            <div class="stat-big-num">&lt;15s</div>
+            <div class="stat-big-lbl">Detection Time</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section id="cta-sec">
+      <div class="cta-inner reveal">
+        <h2 class="cta-title">
+          Don't trust your ears.<br /><span
+            style="
+              background: linear-gradient(90deg, var(--pink), var(--purple));
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+            "
+            >Trust the data.</span
+          >
+        </h2>
+        <p class="cta-sub">
+          Upload any voice recording and find out in seconds whether it's
+          genuine human speech or an AI-generated deepfake.
+        </p>
+        <a href="#hero" class="btn-primary">Analyze Your Audio &rarr;</a>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer id="dg-footer">
+      <div class="foot-logo">
+        <div class="logo-pip"></div>
+        DeepGuard v1.0
+      </div>
+      <div class="foot-links">
+        I
+        <a href="#how-sec">How It Works</a>
+        <a href="#features-sec">Features</a>
+        <a href="#stats-sec">Research</a>
+      </div>
+      <div class="foot-copy">
+        Final Year CS Project &nbsp;&middot;&nbsp; Python &middot; Librosa
+        &middot; scikit-learn &middot; Flask
+      </div>
+    </footer>
+
+    <script>
+      /* Cursor */
+      const dgCur = document.getElementById("dg-cursor"),
+        dgRing = document.getElementById("dg-ring");
+      let mx = 0,
+        my = 0,
+        rx = 0,
+        ry = 0;
+      document.addEventListener("mousemove", (e) => {
+        mx = e.clientX;
+        my = e.clientY;
+        dgCur.style.left = mx + "px";
+        dgCur.style.top = my + "px";
+      });
+      (function ar() {
+        rx += (mx - rx) * 0.12;
+        ry += (my - ry) * 0.12;
+        dgRing.style.left = rx + "px";
+        dgRing.style.top = ry + "px";
+        requestAnimationFrame(ar);
+      })();
+      document
+        .querySelectorAll("a,button,.upload-zone,.feat-card,.step-card")
+        .forEach((el) => {
+          el.addEventListener("mouseenter", () => {
+            dgCur.classList.add("hov");
+            dgRing.classList.add("hov");
+          });
+          el.addEventListener("mouseleave", () => {
+            dgCur.classList.remove("hov");
+            dgRing.classList.remove("hov");
+          });
+        });
+
+      /* Preloader */
+      let pv = 0;
+      const pfill = document.getElementById("pre-fill"),
+        ppct = document.getElementById("pre-pct");
+      const pi = setInterval(() => {
+        pv += Math.random() * 11 + 4;
+        if (pv >= 100) {
+          pv = 100;
+          clearInterval(pi);
+          setTimeout(
+            () => document.getElementById("dg-pre").classList.add("gone"),
+            320,
+          );
+        }
+        pfill.style.width = Math.floor(pv) + "%";
+        ppct.textContent = Math.floor(pv) + "%";
+      }, 95);
+
+      /* Sticky nav */
+      window.addEventListener("scroll", () =>
+        document
+          .getElementById("dg-nav")
+          .classList.toggle("stuck", scrollY > 50),
+      );
+
+      /* Scroll reveal */
+      const ro = new IntersectionObserver(
+        (es) => {
+          es.forEach((e) => {
+            if (e.isIntersecting) e.target.classList.add("in");
+          });
+        },
+        { threshold: 0.12 },
+      );
+      document.querySelectorAll(".reveal").forEach((el) => ro.observe(el));
+
+      /* ── Original JS (all IDs preserved) ── */
+      const uploadZone = document.getElementById("uploadZone");
+      const fileInput = document.getElementById("fileInput");
+      const fileSelected = document.getElementById("fileSelected");
+      const fileName = document.getElementById("fileName");
+      const fileSize = document.getElementById("fileSize");
+      const btnAnalyze = document.getElementById("btnAnalyze");
+      const loader = document.getElementById("loader");
+      const loaderSteps = document.getElementById("loaderSteps");
+      const resultCard = document.getElementById("resultCard");
+      const errorBox = document.getElementById("errorBox");
+      let selectedFile = null;
+
+      uploadZone.addEventListener("click", () => fileInput.click());
+      uploadZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadZone.classList.add("dragover");
+      });
+      uploadZone.addEventListener("dragleave", () =>
+        uploadZone.classList.remove("dragover"),
+      );
+      uploadZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove("dragover");
+        const f = e.dataTransfer.files[0];
+        if (f) handleFile(f);
+      });
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files[0]) handleFile(e.target.files[0]);
+      });
+
+      function handleFile(file) {
+        selectedFile = file;
+        fileName.textContent = file.name;
+        fileSize.textContent = formatBytes(file.size);
+        fileSelected.classList.add("visible");
+        btnAnalyze.classList.add("visible");
+        resultCard.classList.remove("visible");
+        errorBox.classList.remove("visible");
+      }
+      function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / 1048576).toFixed(2) + " MB";
+      }
+      const loaderMessages = [
+        "<span>&#9654;</span> Loading audio file...",
+        "<span>&#9654;</span> Extracting MFCC features...",
+        "<span>&#9654;</span> Computing Mel-Spectrogram...",
+        "<span>&#9654;</span> Running deepfake classifier...",
+        "<span>&#9654;</span> Generating spectrogram visualization...",
+        "<span>&#9654;</span> Compiling results...",
+      ];
+      function startLoaderAnimation() {
+        let i = 0;
+        return setInterval(() => {
+          loaderSteps.innerHTML = loaderMessages[i % loaderMessages.length];
+          i++;
+        }, 600);
+      }
+      async function analyzeAudio() {
+        if (!selectedFile) return;
+        btnAnalyze.disabled = true;
+        loader.classList.add("visible");
+        resultCard.classList.remove("visible");
+        errorBox.classList.remove("visible");
+        const interval = startLoaderAnimation();
+        const formData = new FormData();
+        formData.append("audio", selectedFile);
+        try {
+          const res = await fetch("/predict", {
+            method: "POST",
+            body: formData,
+          });
+          const data = await res.json();
+          clearInterval(interval);
+          if (!res.ok) {
+            showError(data.error || "Prediction failed. Is the model trained?");
+            return;
+          }
+          showResult(data);
+        } catch (err) {
+          clearInterval(interval);
+          showError(
+            "Could not connect to server. Make sure app.py is running.",
+          );
+        } finally {
+          loader.classList.remove("visible");
+          btnAnalyze.disabled = false;
+        }
+      }
+      function showResult(data) {
+        const isFake = data.label === "FAKE";
+        document.getElementById("resultHeader").className =
+          `result-header ${isFake ? "fake" : "real"}`;
+        document.getElementById("verdictBadge").textContent = isFake
+          ? "⚠️"
+          : "✅";
+        document.getElementById("resultLabel").textContent = isFake
+          ? "⚠ DEEPFAKE DETECTED"
+          : "✓ AUTHENTIC VOICE";
+        document.getElementById("resultLabel").className = isFake
+          ? "fake"
+          : "real";
+        document.getElementById("resultFile").textContent =
+          `📁 ${data.file || selectedFile.name}`;
+        document.getElementById("confidenceNum").textContent =
+          `${data.confidence}%`;
+        document.getElementById("confidenceNum").className =
+          `confidence-num ${isFake ? "fake" : "real"}`;
+        const riskColors = {
+          HIGH: "var(--red)",
+          MEDIUM: "var(--yellow)",
+          LOW: "var(--green)",
+        };
+        document.getElementById("riskBadge").innerHTML =
+          `<span class="risk-badge risk-${data.risk_level}">● ${data.risk_level}</span>`;
+        document.getElementById("statFake").textContent =
+          `${(data.fake_prob * 100).toFixed(1)}%`;
+        document.getElementById("statReal").textContent =
+          `${(data.real_prob * 100).toFixed(1)}%`;
+        document.getElementById("statTime").textContent = data.processing_time
+          ? `${data.processing_time}s`
+          : "—";
+        setTimeout(() => {
+          document.getElementById("barFake").style.width =
+            `${data.fake_prob * 100}%`;
+          document.getElementById("barReal").style.width =
+            `${data.real_prob * 100}%`;
+        }, 100);
+        document.getElementById("pctFake").textContent =
+          `${(data.fake_prob * 100).toFixed(1)}%`;
+        document.getElementById("pctReal").textContent =
+          `${(data.real_prob * 100).toFixed(1)}%`;
+        document.getElementById("verdictText").textContent = data.verdict;
+        if (data.spectrogram_url) {
+          document.getElementById("specImg").src = data.spectrogram_url;
+          document.getElementById("specSection").style.display = "block";
+        }
+        resultCard.classList.add("visible");
+        resultCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+      function showError(msg) {
+        errorBox.textContent = `❌ Error: ${msg}`;
+        errorBox.classList.add("visible");
+      }
+    </script>
+  </body>
+</html>
